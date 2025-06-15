@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notesx</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background-color: #f0f4f8;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2.5rem;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .add-note-btn {
+      display: block;
+      margin: 0 auto 20px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .notes-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .note-box {
+      position: relative;
+      background-color: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .note-box:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .note-title {
+      font-size: 1.2rem;
+      color: #444;
+      margin-bottom: 10px;
+    }
+
+    .note-preview {
+      font-size: 0.95rem;
+      color: #777;
+      display: none;
+    }
+
+    .options {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+    }
+
+    .options-menu {
+      position: absolute;
+      top: 30px;
+      right: 10px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+
+    .options-menu button {
+      padding: 10px 15px;
+      border: none;
+      background: none;
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .options-menu button:hover {
+      background-color: #f0f0f0;
+    }
+
+    .sheet-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #fff;
+      display: none;
+      overflow-y: auto;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .note-line {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .note-line span {
+      width: 30px;
+      color: #007BFF;
+      font-weight: bold;
+    }
+
+    .note-line input {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+
+    .close-btn {
+      margin: 20px auto 0;
+      padding: 10px 20px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: block;
+    }
+
+    .close-btn:hover {
+      background-color: #0056b3;
+    }
+
+    @media (max-width: 600px) {
+      .note-line input {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Notesx</h1>
+  <button class="add-note-btn" onclick="addNote()">Add Note</button>
+  <div class="notes-container" id="notesContainer"></div>
+
+  <div class="sheet-overlay" id="sheetOverlay">
+    <div class="sheet-header">
+      <h2 id="sheetTitle"></h2>
+      <div class="options" onclick="toggleSheetMenu(this)">⋮</div>
+      <div class="options-menu" id="sheetMenu">
+        <button onclick="addMoreLines()">Add More Lines</button>
+      </div>
+    </div>
+    <div id="noteLines"></div>
+    <button class="close-btn" onclick="closeSheet()">Close</button>
+  </div>
+
+  <script>
+    let notes = JSON.parse(localStorage.getItem('notesx')) || [{ title: 'New Note', lines: Array(10).fill('') }];
+    let currentNoteIndex = null;
+
+    function saveNotes() {
+      localStorage.setItem('notesx', JSON.stringify(notes));
+    }
+
+    function renderNotes() {
+      const container = document.getElementById('notesContainer');
+      container.innerHTML = '';
+      notes.forEach((note, index) => {
+        const box = document.createElement('div');
+        box.className = 'note-box';
+        box.innerHTML = `
+          <div class="note-title" id="title-${index}">${note.title}</div>
+          <div class="options" onclick="toggleMenu(this)">⋮</div>
+          <div class="options-menu">
+            <button onclick="enableTitleEdit(${index})">Change Name</button>
+            <button onclick="deleteNote(${index})">Delete</button>
+          </div>
+        `;
+        box.querySelector('.note-title').addEventListener('click', () => openSheet(index));
+        container.appendChild(box);
+      });
+    }
+
+    function enableTitleEdit(index) {
+      const titleDiv = document.getElementById(`title-${index}`);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = notes[index].title;
+      input.style = 'width: 100%; font-size: 1.2rem; border: none; outline: none;';
+      titleDiv.replaceWith(input);
+      input.focus();
+      input.addEventListener('blur', () => {
+        notes[index].title = input.value;
+        saveNotes();
+        renderNotes();
+      });
+    }
+
+    function addNote() {
+      notes.push({ title: 'New Note', lines: Array(10).fill('') });
+      saveNotes();
+      renderNotes();
+    }
+
+    function openSheet(index) {
+      currentNoteIndex = index;
+      document.getElementById('sheetTitle').textContent = notes[index].title;
+      const container = document.getElementById('noteLines');
+      container.innerHTML = '';
+      if (notes[index].lines.length === 0) {
+        notes[index].lines = Array(10).fill('');
+      }
+      notes[index].lines.forEach((line, i) => {
+        const div = document.createElement('div');
+        div.className = 'note-line';
+        div.innerHTML = `<span>${i + 1}.</span><input type="text" value="${line}" oninput="updateLine(${i}, this.value)">`;
+        container.appendChild(div);
+      });
+      document.getElementById('sheetOverlay').style.display = 'block';
+      history.pushState({ screen: 'sheet' }, '');
+    }
+
+    function updateLine(index, value) {
+      notes[currentNoteIndex].lines[index] = value;
+      saveNotes();
+    }
+
+    function closeSheet() {
+      document.getElementById('sheetOverlay').style.display = 'none';
+    }
+
+    function addMoreLines() {
+      let count = parseInt(prompt("How many lines to add/delete?"));
+      if (!Number.isInteger(count)) return;
+      if (count > 0) {
+        for (let i = 0; i < count; i++) {
+          notes[currentNoteIndex].lines.push("");
+        }
+      } else if (count < 0) {
+        notes[currentNoteIndex].lines.splice(count);
+      }
+      saveNotes();
+      openSheet(currentNoteIndex);
+    }
+
+    function deleteNote(index) {
+      notes.splice(index, 1);
+      saveNotes();
+      renderNotes();
+    }
+
+    function toggleMenu(el) {
+      document.querySelectorAll('.options-menu').forEach(menu => menu.style.display = 'none');
+      const menu = el.nextElementSibling;
+      menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    function toggleSheetMenu(el) {
+      const menu = document.getElementById('sheetMenu');
+      menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.options') && !e.target.closest('.options-menu')) {
+        document.querySelectorAll('.options-menu').forEach(m => m.style.display = 'none');
+      }
+    });
+
+    window.addEventListener('popstate', () => {
+      document.getElementById('sheetOverlay').style.display = 'none';
+    });
+
+    renderNotes();
+  </script>
+</body>
+</html>

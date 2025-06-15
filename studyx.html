@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    /* Prevent any horizontal scrollbar */
+    html, body {
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    body {
+      background: #f3f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding-top: 50px;
+    }
+
+    .container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #3b3b98;
+      margin-bottom: 20px;
+    }
+
+    .task {
+      display: flex;
+      align-items: center;
+      background: #f1f3f6;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 15px;
+      transition: 0.3s;
+      position: relative;
+      cursor: grab;
+      flex-wrap: nowrap;
+    }
+    .task.dragging {
+      opacity: 0.7;
+      cursor: grabbing;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .task-number {
+      font-weight: 600;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .task input[type="text"] {
+      border: none;
+      background: transparent;
+      flex: 1;
+      font-size: 1rem;   /* restored original size (16px) */
+      outline: none;
+      min-width: 0;      /* allow shrinking */
+    }
+
+    .status-box {
+      width: 34px;
+      height: 34px;
+      border: 2px solid #999;
+      border-radius: 4px;
+      margin-left: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      position: relative;
+      background: transparent;
+      padding: 2px;
+      flex-shrink: 0;
+    }
+
+    .status-box i {
+      font-size: 22px;
+      font-weight: 600;
+      transition: color 0.3s ease, transform 0.2s ease;
+      user-select: none;
+    }
+
+    .status-options {
+      position: absolute;
+      top: 36px;
+      right: 0;
+      left: auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      display: none;
+      flex-direction: row;
+      gap: 8px;
+      padding: 6px;
+      z-index: 1;
+    }
+
+    .status-options i {
+      font-size: 26px;
+      margin: 0 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .status-options i:hover {
+      transform: scale(1.15);
+      color: #3b3b98;
+    }
+
+    .status-box i.fas.fa-check { color: green; }
+    .status-box i.fas.fa-xmark { color: red; }
+    .status-box i.fas.fa-clock { color: blue; }
+    .status-options i.fas.fa-check { color: green; }
+    .status-options i.fas.fa-xmark { color: red; }
+    .status-options i.fas.fa-clock { color: blue; }
+
+    .add-btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #3b3b98;
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .add-btn:hover {
+      background-color: #2d2d8a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Study X</h2>
+    <div id="taskList"></div>
+    <button class="add-btn" onclick="addTask()">Add Task</button>
+  </div>
+
+  <script>
+    let draggedTask = null;
+
+    function saveTasks() {
+      const arr = Array.from(document.querySelectorAll('.task')).map(t => ({
+        text: t.querySelector('input').value,
+        status: t.dataset.status || ''
+      }));
+      localStorage.setItem('tasks', JSON.stringify(arr));
+    }
+
+    function loadTasks() {
+      const arr = JSON.parse(localStorage.getItem('tasks')) || [];
+      arr.forEach(o => addTask(o.text, o.status));
+    }
+
+    function updateNumbers() {
+      document.querySelectorAll('.task-number').forEach((el, i) => {
+        el.textContent = (i + 1) + '.';
+      });
+    }
+
+    function addTask(text = '', status = '') {
+      const list = document.getElementById('taskList');
+      const task = document.createElement('div');
+      task.className = 'task';
+      task.dataset.status = status;
+
+      const num = document.createElement('span');
+      num.className = 'task-number';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Enter your task here...';
+      input.value = text;
+      input.addEventListener('input', saveTasks);
+
+      const box = document.createElement('div');
+      box.className = 'status-box';
+
+      const icon = document.createElement('i');
+      setStatusIcon(icon, status);
+      if (status) box.appendChild(icon);
+
+      const opts = document.createElement('div');
+      opts.className = 'status-options';
+      [['check','Done','done'],['xmark','Cancelled','cancelled'],['clock','Pending','pending']]
+        .forEach(([fa,tip,val]) => {
+          const el = document.createElement('i');
+          el.className = `fas fa-${fa}`;
+          el.title = tip;
+          el.onclick = e => {
+            e.stopPropagation();
+            task.dataset.status = val;
+            icon.className = `fas fa-${fa}`;
+            box.innerHTML = '';
+            box.appendChild(icon);
+            opts.style.display = 'none';
+            saveTasks();
+          };
+          opts.appendChild(el);
+        });
+
+      box.appendChild(opts);
+      box.onclick = e => {
+        e.stopPropagation();
+        const open = opts.style.display === 'flex';
+        document.querySelectorAll('.status-options')
+                .forEach(o => o.style.display = 'none');
+        opts.style.display = open ? 'none' : 'flex';
+      };
+
+      task.append(num, input, box);
+      list.appendChild(task);
+      updateNumbers();
+      saveTasks();
+      addInteractions(task);
+    }
+
+    function setStatusIcon(icon, status) {
+      if (status === 'done') icon.className = 'fas fa-check';
+      if (status === 'cancelled') icon.className = 'fas fa-xmark';
+      if (status === 'pending') icon.className = 'fas fa-clock';
+    }
+
+    function removeTask(el) {
+      el.style.transition = 'transform .3s, opacity .3s';
+      el.style.transform = 'translateX(-100%)';
+      el.style.opacity = '0';
+      setTimeout(() => {
+        if (confirm('Remove this task?')) {
+          el.remove();
+          updateNumbers();
+          saveTasks();
+        } else {
+          el.style.transform = 'translateX(0)';
+          el.style.opacity = '1';
+        }
+      }, 300);
+    }
+
+    function addInteractions(task) {
+      let startX = 0;
+
+      // Touch swipe
+      task.addEventListener('touchstart', e => {
+        startX = e.touches[0].clientX;
+      });
+      task.addEventListener('touchend', e => {
+        if (startX - e.changedTouches[0].clientX > 100) {
+          removeTask(task);
+        }
+      });
+
+      // Mouse "swipe"
+      task.addEventListener('mousedown', e => {
+        startX = e.clientX;
+      });
+      task.addEventListener('mouseup', e => {
+        if (startX - e.clientX > 100) {
+          removeTask(task);
+        }
+      });
+
+      // Right-click delete
+      task.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        removeTask(task);
+      });
+
+      // Drag & drop
+      task.draggable = true;
+      task.addEventListener('dragstart', () => {
+        draggedTask = task; task.classList.add('dragging');
+      });
+      task.addEventListener('dragend', () => {
+        draggedTask = null; task.classList.remove('dragging');
+        updateNumbers(); saveTasks();
+      });
+      task.parentNode?.addEventListener('dragover', e => {
+        e.preventDefault();
+        const over = e.target.closest('.task');
+        if (over && over !== draggedTask) {
+          const rect = over.getBoundingClientRect();
+          const after = (e.clientY - rect.top) > (rect.height / 2);
+          over.parentNode.insertBefore(draggedTask, after ? over.nextSibling : over);
+        }
+      });
+    }
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.status-options')
+              .forEach(o => o.style.display = 'none');
+    });
+
+    // Initialize
+    loadTasks();
+  </script>
+</body>
+</html>

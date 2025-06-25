@@ -70,9 +70,9 @@
       border: none;
       background: transparent;
       flex: 1;
-      font-size: 1rem;   /* restored original size (16px) */
+      font-size: 1rem;
       outline: none;
-      min-width: 0;      /* allow shrinking */
+      min-width: 0;
     }
 
     .status-box {
@@ -164,7 +164,12 @@
         text: t.querySelector('input').value,
         status: t.dataset.status || ''
       }));
-      localStorage.setItem('tasks', JSON.stringify(arr));
+      // If all tasks removed, clear storage
+      if (arr.length === 0) {
+        localStorage.removeItem('tasks');
+      } else {
+        localStorage.setItem('tasks', JSON.stringify(arr));
+      }
     }
 
     function loadTasks() {

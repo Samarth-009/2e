@@ -3,22 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>XS</title>
+  <title>Study X</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
-    /* Prevent any horizontal scrollbar */
     html, body {
       overflow-x: hidden;
       margin: 0;
       padding: 0;
     }
-
     * {
       box-sizing: border-box;
       font-family: 'Poppins', sans-serif;
     }
-
     body {
       background: #f3f7fa;
       display: flex;
@@ -26,7 +23,6 @@
       align-items: flex-start;
       padding-top: 50px;
     }
-
     .container {
       background: #fff;
       padding: 30px;
@@ -35,13 +31,11 @@
       width: 100%;
       max-width: 500px;
     }
-
     h2 {
       text-align: center;
       color: #3b3b98;
       margin-bottom: 20px;
     }
-
     .task {
       display: flex;
       align-items: center;
@@ -52,29 +46,18 @@
       transition: 0.3s;
       position: relative;
       cursor: grab;
-      flex-wrap: nowrap;
     }
-    .task.dragging {
-      opacity: 0.7;
-      cursor: grabbing;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    }
-
     .task-number {
       font-weight: 600;
       margin-right: 12px;
-      flex-shrink: 0;
     }
-
     .task input[type="text"] {
       border: none;
       background: transparent;
       flex: 1;
       font-size: 1rem;
       outline: none;
-      min-width: 0;
     }
-
     .status-box {
       width: 34px;
       height: 34px;
@@ -86,23 +69,18 @@
       align-items: center;
       cursor: pointer;
       position: relative;
-      background: transparent;
       padding: 2px;
-      flex-shrink: 0;
     }
-
     .status-box i {
       font-size: 22px;
       font-weight: 600;
       transition: color 0.3s ease, transform 0.2s ease;
       user-select: none;
     }
-
     .status-options {
       position: absolute;
       top: 36px;
       right: 0;
-      left: auto;
       background: white;
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -112,10 +90,8 @@
       padding: 6px;
       z-index: 1;
     }
-
     .status-options i {
       font-size: 26px;
-      margin: 0 6px;
       cursor: pointer;
       user-select: none;
     }
@@ -123,14 +99,9 @@
       transform: scale(1.15);
       color: #3b3b98;
     }
-
     .status-box i.fas.fa-check { color: green; }
     .status-box i.fas.fa-xmark { color: red; }
     .status-box i.fas.fa-clock { color: blue; }
-    .status-options i.fas.fa-check { color: green; }
-    .status-options i.fas.fa-xmark { color: red; }
-    .status-options i.fas.fa-clock { color: blue; }
-
     .add-btn {
       display: block;
       width: 100%;
@@ -158,32 +129,19 @@
 
   <script>
     let draggedTask = null;
+    let taskData = [];
 
     function saveTasks() {
-      const arr = Array.from(document.querySelectorAll('.task')).map(t => ({
-        text: t.querySelector('input').value,
-        status: t.dataset.status || ''
-      }));
-      // If all tasks removed, clear storage
-      if (arr.length === 0) {
-        localStorage.removeItem('tasks');
-      } else {
-        localStorage.setItem('tasks', JSON.stringify(arr));
-      }
+      localStorage.setItem('tasks', JSON.stringify(taskData));
     }
 
     function loadTasks() {
-      const arr = JSON.parse(localStorage.getItem('tasks')) || [];
-      arr.forEach(o => addTask(o.text, o.status));
+      const stored = JSON.parse(localStorage.getItem('tasks')) || [];
+      taskData = stored;
+      taskData.forEach(({ text, status }) => renderTask(text, status));
     }
 
-    function updateNumbers() {
-      document.querySelectorAll('.task-number').forEach((el, i) => {
-        el.textContent = (i + 1) + '.';
-      });
-    }
-
-    function addTask(text = '', status = '') {
+    function renderTask(text = '', status = '') {
       const list = document.getElementById('taskList');
       const task = document.createElement('div');
       task.className = 'task';
@@ -196,7 +154,11 @@
       input.type = 'text';
       input.placeholder = 'Enter your task here...';
       input.value = text;
-      input.addEventListener('input', saveTasks);
+      input.addEventListener('input', () => {
+        const index = Array.from(list.children).indexOf(task);
+        if (index !== -1) taskData[index].text = input.value;
+        saveTasks();
+      });
 
       const box = document.createElement('div');
       box.className = 'status-box';
@@ -208,7 +170,7 @@
       const opts = document.createElement('div');
       opts.className = 'status-options';
       [['check','Done','done'],['xmark','Cancelled','cancelled'],['clock','Pending','pending']]
-        .forEach(([fa,tip,val]) => {
+        .forEach(([fa, tip, val]) => {
           const el = document.createElement('i');
           el.className = `fas fa-${fa}`;
           el.title = tip;
@@ -219,6 +181,8 @@
             box.innerHTML = '';
             box.appendChild(icon);
             opts.style.display = 'none';
+            const index = Array.from(list.children).indexOf(task);
+            if (index !== -1) taskData[index].status = val;
             saveTasks();
           };
           opts.appendChild(el);
@@ -228,22 +192,33 @@
       box.onclick = e => {
         e.stopPropagation();
         const open = opts.style.display === 'flex';
-        document.querySelectorAll('.status-options')
-                .forEach(o => o.style.display = 'none');
+        document.querySelectorAll('.status-options').forEach(o => o.style.display = 'none');
         opts.style.display = open ? 'none' : 'flex';
       };
 
       task.append(num, input, box);
       list.appendChild(task);
       updateNumbers();
-      saveTasks();
       addInteractions(task);
+    }
+
+    function updateNumbers() {
+      const list = document.getElementById('taskList');
+      [...list.children].forEach((task, i) => {
+        task.querySelector('.task-number').textContent = `${i + 1}.`;
+      });
+    }
+
+    function addTask(text = '', status = '') {
+      taskData.push({ text, status });
+      saveTasks();
+      renderTask(text, status);
     }
 
     function setStatusIcon(icon, status) {
       if (status === 'done') icon.className = 'fas fa-check';
-      if (status === 'cancelled') icon.className = 'fas fa-xmark';
-      if (status === 'pending') icon.className = 'fas fa-clock';
+      else if (status === 'cancelled') icon.className = 'fas fa-xmark';
+      else if (status === 'pending') icon.className = 'fas fa-clock';
     }
 
     function removeTask(el) {
@@ -252,6 +227,8 @@
       el.style.opacity = '0';
       setTimeout(() => {
         if (confirm('Remove this task?')) {
+          const index = Array.from(document.getElementById('taskList').children).indexOf(el);
+          if (index !== -1) taskData.splice(index, 1);
           el.remove();
           updateNumbers();
           saveTasks();
@@ -264,41 +241,31 @@
 
     function addInteractions(task) {
       let startX = 0;
-
-      // Touch swipe
-      task.addEventListener('touchstart', e => {
-        startX = e.touches[0].clientX;
-      });
+      task.addEventListener('touchstart', e => startX = e.touches[0].clientX);
       task.addEventListener('touchend', e => {
-        if (startX - e.changedTouches[0].clientX > 100) {
-          removeTask(task);
-        }
+        if (startX - e.changedTouches[0].clientX > 100) removeTask(task);
       });
-
-      // Mouse "swipe"
-      task.addEventListener('mousedown', e => {
-        startX = e.clientX;
-      });
+      task.addEventListener('mousedown', e => startX = e.clientX);
       task.addEventListener('mouseup', e => {
-        if (startX - e.clientX > 100) {
-          removeTask(task);
-        }
+        if (startX - e.clientX > 100) removeTask(task);
       });
-
-      // Right-click delete
       task.addEventListener('contextmenu', e => {
         e.preventDefault();
         removeTask(task);
       });
-
-      // Drag & drop
       task.draggable = true;
       task.addEventListener('dragstart', () => {
         draggedTask = task; task.classList.add('dragging');
       });
       task.addEventListener('dragend', () => {
         draggedTask = null; task.classList.remove('dragging');
-        updateNumbers(); saveTasks();
+        const list = document.getElementById('taskList');
+        taskData = [...list.children].map(task => ({
+          text: task.querySelector('input').value,
+          status: task.dataset.status || ''
+        }));
+        updateNumbers();
+        saveTasks();
       });
       task.parentNode?.addEventListener('dragover', e => {
         e.preventDefault();
@@ -312,11 +279,9 @@
     }
 
     document.addEventListener('click', () => {
-      document.querySelectorAll('.status-options')
-              .forEach(o => o.style.display = 'none');
+      document.querySelectorAll('.status-options').forEach(o => o.style.display = 'none');
     });
 
-    // Initialize
     loadTasks();
   </script>
 </body>
